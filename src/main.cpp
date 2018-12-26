@@ -10,6 +10,7 @@
 #include "json.hpp"
 #include "spline.h"
 
+
 using namespace std;
 
 // for convenience
@@ -162,6 +163,8 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+double ref_vel = 0.0;
+int lane = 1;
 int main() {
   uWS::Hub h;
 
@@ -238,8 +241,48 @@ int main() {
 
 			json msgJson;
 			int prev_size = previous_path_x.size();
-			int lane = 1;
-  			double ref_vel = 49.5;	
+
+			if(prev_size > 0)
+			{
+				car_s = end_path_s;
+			}
+
+			bool too_close = false;
+
+			for (int i = 0; i < sensor_fusion.size(); i++)
+			{
+				float d = sensor_fusion[i][6];
+				if (d < (2+4*lane+2) && d > (2+4*lane-2))
+				{
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+
+					double check_speed = sqrt(vx*vx + vy*vy);
+					double check_car_s = sensor_fusion[i][5];
+
+					check_car_s += ((double) prev_size*0.02*check_speed);
+
+					if ((check_car_s > car_s) && ((check_car_s-car_s) < 30 ))
+					{
+						//ref_vel = 29.5;	
+						too_close = true;
+						if 	(lane > 0)
+						{
+							lane = 0;
+						}
+
+					}
+				}
+			}
+
+			if(too_close)
+			{
+				ref_vel -= .224;
+			}
+			else if (ref_vel < 49.5)
+			{
+				ref_vel += .224;
+			}
 
 			// Create a list of widely spaced (x,y) waypoints evenly
 			// spaced at 30 m.
@@ -250,10 +293,7 @@ int main() {
 
 			double ref_x = car_x;
 			double ref_y = car_y;
-			double ref_yaw = deg2rad(car_yaw);
-			
-			cout << "ref_x,ref_y" << ref_x  << " " << ref_y << endl;
-
+			double ref_yaw = deg2rad(car_yaw);	
 			
 			if (prev_size<2)
 			{
@@ -312,7 +352,7 @@ int main() {
 			tk::spline s;
 
 			// set (x,y) points to the spline
-			cout << "size " << ptsx.size()  << " " << ptsy.size() << endl;
+			
 			s.set_points(ptsx,ptsy);
 				
           	vector<double> next_x_vals;
