@@ -5,11 +5,12 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <map>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
-
+#include "vehicle.h"
 
 using namespace std;
 
@@ -229,15 +230,31 @@ int main() {
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
+			// ???
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values 
-          	double end_path_s = j[1]["end_path_s"];
+          	
+			// Previous path's end s and d values
+			double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
-          	auto sensor_fusion = j[1]["sensor_fusion"];
+          	// also called predictions
+			auto sensor_fusion = j[1]["sensor_fusion"];
+
+			map<int ,vector<Vehicle> > predictions;
+			
+			// sensor fusion contains
+			// [ id, x, y, vx, vy, s, d]
+
+			// predictions map contains an index and a vector of Vehicle type
+			// This vector contains the values of the vehicle of the current timestamp
+			// and the next timestamp
+
+			// I need the this values of the vehicle for the next timestamp
+			// i.e. I need to predict these values.
+
 
 			json msgJson;
 			int prev_size = previous_path_x.size();
@@ -249,8 +266,11 @@ int main() {
 
 			bool too_close = false;
 
+
 			for (int i = 0; i < sensor_fusion.size(); i++)
 			{
+				//predictions[sensor_fusion[i][0]] = Vehicle();
+
 				float d = sensor_fusion[i][6];
 				if (d < (2+4*lane+2) && d > (2+4*lane-2))
 				{
@@ -352,7 +372,7 @@ int main() {
 			tk::spline s;
 
 			// set (x,y) points to the spline
-			
+				
 			s.set_points(ptsx,ptsy);
 				
           	vector<double> next_x_vals;
