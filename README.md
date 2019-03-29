@@ -36,36 +36,24 @@ Now the path planner is running and listening on port 4567 for messages from the
 
 # [Rubic](https://review.udacity.com/#!/rubrics/1020/view) points
 
-## Compilation
-
 ### The code compiles correctly.
 Cheked
 
 ## Valid trajectories
-## Walkthrough
+The car is able to drive at least 4.32 miles without incident: yes
+The car drives according to the speed limit: yes
+Max Acceleration and Jerk are not Exceeded: yes
+Car does not have collisions: yes
+The car stays in its lane, except for the time between changing lanes: yes
+The car is able to change lanes: yes
 
-### Line
+![milesDriver](images/milesDriven.png)
 
-### The car is able to drive at least 4.32 miles without incident.
-The simulation was run for 10 miles without any incidents as shown in the picture below.
+## Reflection
+There is a reflection on how to generate paths: yes
 
-![15 miles](images/15_miles.png)
 
-### The car drives according to the speed limit.
-Speed limit violation was not shown.
-
-### Max Acceleration and Jerk are not Exceeded.
-Maximum jerk red message was not shown.
-
-### Car does not have collisions.
-No collisions in th
-
-### The car stays in its lane, except for the time between changing lanes.
-The car stays in its lane most of the time but when it changes lane because of traffic or to return to the center lane.
-
-### The car is able to change lanes
-The car is able to change lanes when a slower car is ahead. This is done safely and meeting the requirements of confort given by the jerk and the acceleration limits. 
-## Code Analysis
+## Reflection
 
 The code consist of three main parts:
 
