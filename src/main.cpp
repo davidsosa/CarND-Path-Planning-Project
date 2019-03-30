@@ -20,6 +20,18 @@ constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
 double rad2deg(double x) { return x * 180 / pi(); }
 
+// constants
+int const horizonValue = 30;
+int const sideChangeValue = 25;
+float const runCycle = 0.02; 
+size_t const nPoints = 50;
+double const MAX_SPEED = 49.5;
+double const MAX_ACC = 0.224;
+double const MAX_DEACC = 0.175;
+int const centerLane = 1;
+int const laneWidth = 4;
+
+
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 // else the empty string "" will be returned.
@@ -236,13 +248,14 @@ int main() {
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
-          	// Sensor Fusion Data, a list of all other cars on the same side of the road.
+          	// Other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
-            // Provided previous path point size.
+            // Previous path size.
             int prev_size = previous_path_x.size();
 
-            // Preventing collitions.
+            // set current car_s to the end_path_s
+            // to avoid collision and jerk violating lane changes
             if (prev_size > 0) 
             {
               car_s = end_path_s;
@@ -257,14 +270,14 @@ int main() {
                 int car_lane = -1;
                 
                 // is it on the same lane we are
-                if ( d > 0 && d < 4 ) {
+                if ( d > 0 && d < laneWidth ) {
                   car_lane = 0;
                 } 
-                else if ( d > 4 && d < 8 ) 
+                else if ( d > laneWidth && d < laneWidth*2 ) 
                 {
-                  car_lane = 1;
+                  car_lane = centerLane;
                 } 
-                else if ( d > 8 && d < 12 ) 
+                else if ( d > laneWidth*2 && d < laneWidth*3 ) 
                 {
                   car_lane = 2;
                 }
@@ -273,49 +286,53 @@ int main() {
                   continue;
                 }
 
-                // Find car speed.
+                // Find other cars' speed.
                 double vx = sensor_fusion[i][3];
                 double vy = sensor_fusion[i][4];
                 double check_speed = sqrt(vx*vx + vy*vy);
                 double check_car_s = sensor_fusion[i][5];
 
                 // Project s value outwards in time
-                check_car_s += ((double)prev_size*0.02*check_speed);
+                check_car_s += ((double)prev_size*runCycle*check_speed);
 
                 if ( car_lane == lane ) {
                   // Car in our lane.
-                  car_ahead |= check_car_s > car_s && check_car_s - car_s < 30;
+                  car_ahead |= check_car_s > car_s && check_car_s - car_s < horizonValue;
                 } else if ( car_lane - lane == -1 ) {
                  // Car left
-                  car_left |= car_s - 25 < check_car_s && car_s + 25 > check_car_s;
+                  car_left |= car_s - sideChangeValue < check_car_s && car_s + sideChangeValue > check_car_s;
                 } else if ( car_lane - lane == 1 ) {
                   // Car right
-                  car_right |= car_s - 25 < check_car_s && car_s + 25 > check_car_s;
+                  car_right |= car_s - sideChangeValue < check_car_s && car_s + sideChangeValue > check_car_s;
                 }
             }
 
-            // Behavior : Do something with the prediction
-            double speed_diff = 0;
-            const double MAX_SPEED = 49.5;
-            const double MAX_ACC = .224;
+            // Behavior 
+            double speedChange = 0;
             if ( car_ahead ) { // Car ahead
-              if ( !car_left && lane > 0 ) {
+              if ( !car_left && lane > 0 ) 
+              {
                 // if there is no car left and there is a left lane.
                 lane--; // Change lane left.
-              } else if ( !car_right && lane != 2 ){
+              } 
+              else if ( !car_right && lane != 2 )
+              {
                 // if there is no car right and there is a right lane.
                 lane++; // Change lane right.
-              } else {
-                speed_diff -= 0.150;
+              } 
+              else 
+              {
+                speedChange -= MAX_DEACC;
               }
-            } else {
-              if ( lane != 1 ) { // if we are not on the center lane.
+            } 
+            else {
+              if ( lane != centerLane ) { // if we are not on the center lane.
                 if ( ( lane == 0 && !car_right ) || ( lane == 2 && !car_left ) ) {
-                  lane = 1; // Back to center.
+                  lane = centerLane; // Back to center.
                 }
               }
               if ( ref_vel < MAX_SPEED ) {
-                speed_diff += MAX_ACC;
+                speedChange += MAX_ACC;
               }
             }
 
@@ -362,9 +379,9 @@ int main() {
             }
 
             // Setting up target points in the future.
-            vector<double> next_wp0 = getXY(car_s + 30, (2 + 4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp1 = getXY(car_s + 60, (2 + 4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-            vector<double> next_wp2 = getXY(car_s + 90, (2 + 4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp0 = getXY(car_s + 30, (2 + laneWidth*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp1 = getXY(car_s + 60, (2 + laneWidth*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+            vector<double> next_wp2 = getXY(car_s + 90, (2 + laneWidth*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
             points_x.push_back(next_wp0[0]);
             points_x.push_back(next_wp1[0]);
@@ -392,14 +409,15 @@ int main() {
             vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-            // add previous points to the path planner
+            // add previous points to the path planner to avoid 
+            // discontinuities
             for ( int i = 0; i < prev_size; i++ ) {
               next_x_vals.push_back(previous_path_x[i]);
               next_y_vals.push_back(previous_path_y[i]);
             }
 
             // Calculate distance y position on 30 m ahead.
-            double target_x = 30.0; // horizon value
+            double target_x = horizonValue; // horizon value
             double target_y = s(target_x); // get y value
 
             double target_dist = sqrt(target_x*target_x + target_y*target_y);
@@ -407,18 +425,18 @@ int main() {
             // due to local tranform start at the origin
             double x_add_on = 0;
             
-            for( int i = 1; i < 50 - prev_size; i++ ) {
+            for( int i = 1; i < nPoints - prev_size; i++ ) {
 
-              ref_vel += speed_diff;
+              ref_vel += speedChange;
               if ( ref_vel > MAX_SPEED ) {
                 ref_vel = MAX_SPEED;
               } else if ( ref_vel < MAX_ACC ) {
                 ref_vel = MAX_ACC;
               }
 
-              // N x 0.02 sec x desired_vel = d
+              // N x runCycle sec x desired_vel = d
               // divided by 2.24 to get m/s
-              double N = target_dist/(0.02*ref_vel/2.24); 
+              double N = target_dist/(runCycle*ref_vel/2.24); 
 
               double x_point = x_add_on + target_x/N;
               double y_point = s(x_point);

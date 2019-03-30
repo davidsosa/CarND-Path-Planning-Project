@@ -49,9 +49,8 @@ The car is able to change lanes: yes
 
 ![milesDriver](images/milesDriven.png)
 
-## Reflection
+### Reflection
 There is a reflection on how to generate paths: yes
-
 
 ## Reflection
 
@@ -61,26 +60,27 @@ The code consist of three main parts:
 - behaviour phase,
 - path planning i.e. safe and and confortable trajectory generation. 
 
-### Perception and Prediction [line 251 to line 290](./src/main.cpp#L51)
+### Perception and Prediction [line 259 to line 308](./src/main.cpp#L242)
 Data coming from the sensor fusion modules are used to perceive if there are cars ahead of the ego-vehicle (our vehicle) and in the same lane. 
 
- In the case, we want to know three aspects of it:
+ Three questions regarding the sensor fusion data are the most relevant:
 
-- Is there a car in front of us blocking the traffic.
-- Is there a car to the right of us making a lane change not safe.
-- Is there a car to the left of us making a lane change not safe.
+- Is there a car ahead 30 meters ahead?
+- Is there a car to the right +- 25 meters?
+- Is there a car to the left +- 25 meters?
 
-These questions are answered by calculating the lane each other car is and the position it will be at the end of the last plan trajectory. A car is considered "dangerous" when its distance to our car is less than 30 meters in front or behind us.
+First the car_s is set to the end_path_s. This helps to prevent collisions avoid jerk violating trajectories. 
 
-### Behavior [line 292 to line 314](./src/main.cpp#L293)
-This part decides what to do:
-  - If we have a car in front of us, do we change lanes?
-  - Do we speed up or slow down?
+Secondly, the calculation of the ego-vehicle position lane position is carreid out. A lane change is not carried out when a vehicle is detected to the right or to the left within a distance of 25 meters. The value of 25 was chosen to have quicker lane changes.  
 
-Based on the prediction of the situation we are in, this code increases the speed, decrease speed, or make a lane change when it is safe. Instead of increasing the speed at this part of the code, a `speed_diff` is created to be used for speed changes when generating the trajectory in the last part of the code. This approach makes the car more responsive acting faster to changing situations like a car in front of it trying to apply breaks to cause a collision.
+### Behavior [line 298 to line 314](./src/main.cpp#L293)
+
+Based on the prediction the speed is increase or decreased or a lane change is carried out. A variable `speedChange` is created which is then applied later in the trajectory generation.. Applying the speed change witin for loop helps creating more smooth and responsive trajectories. 
+
+When the conditions outlined in [line 285 to line 294] and a car is ahead then there is a lane change (lane++ or lane--), otherwise we just check if it is safe to return to the center lane.
 
 ### Trajectory [line 326 to line 416](./src/main.cpp#L313)
-This code does the calculation of the trajectory based on the speed and lane output from the behavior, car coordinates and past path points.
+This part of the code does the calculation of the trajectory based on the speed and lane output from the behavior part, the car coordinates and the previous path points.
 
 First, the last two points of the previous trajectory are added to the points_x, points_y vectors. If there are less than two points in the trajectory (line 326), then the current position and the previous position (taken from the car's yaw). If there are more than two points in the trajectory (line 338) then, those two last points are added to the trajectory and a reference yaw is calculated for future use.
  
@@ -93,3 +93,5 @@ In order to ensure more continuity on the trajectory (in addition to adding the 
 ## Spacing the spline points at a desired speed
 
 The rest of the points are calculated by evaluating the spline and transforming the output coordinates to not local coordinates (lines 388 to 407). Worth noticing the change in the velocity of the car from line 393 to 398. The speed change is decided on the behavior part of the code, but it is used in that part to increase/decrease speed on every trajectory points instead of doing it for the complete trajectory.
+
+
